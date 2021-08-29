@@ -27,6 +27,48 @@ def tensor2im(input_image, imtype=np.uint8):
     return image_numpy.astype(imtype)
 
 
+def tensor2lbl(input_image, imtype=np.uint8, nclass=3):
+    """
+    Converts a Tensor array into a numpy image array.
+    """
+    if isinstance(input_image, torch.Tensor):
+        if (input_image.dim() == 3):
+            image_tensor = input_image.data[0]
+        else:
+            image_tensor = torch.argmax(input_image.data[0], dim=0)
+        assert (image_tensor.shape[0] == 256)
+        image_numpy = image_tensor.cpu().float().numpy()  # convert it into a numpy array
+        image_numpy = image_numpy.astype(imtype)
+        colormap = (label_colormap(nclass) * 255).astype(imtype)
+        lbl_viz = colormap[image_numpy].astype(imtype)
+    else:
+        raise Exception('The expected type is tensor')
+    return lbl_viz
+
+
+def label_colormap(nclass=256):
+
+    def bitget(byteval, idx):
+        return ((byteval & (1 << idx)) != 0)
+
+    cmap = np.zeros((nclass, 3))
+    for i in range(0, nclass):
+        id = i
+        r, g, b = 0, 0, 0
+        for j in range(0, 8):
+            r = np.bitwise_or(r, (bitget(id, 0) << 7 - j))
+            g = np.bitwise_or(g, (bitget(id, 1) << 7 - j))
+            b = np.bitwise_or(b, (bitget(id, 2) << 7 - j))
+            id = (id >> 3)
+        cmap[i, 0] = r
+        cmap[i, 1] = g
+        cmap[i, 2] = b
+    cmap = cmap.astype(np.float32) / 255
+
+    cmap = np.asarray([[1, 0, 0], [0, 1, 0], [1, 1, 1]]).astype(np.float32)
+    return cmap
+
+
 def diagnose_network(net, name='network'):
     """Calculate and print the mean of average absolute(gradients)
 
