@@ -19,7 +19,7 @@ class ImagePool():
         if self.pool_size > 0:  # create an empty pool
             self.num_imgs = 0
             self.images = []
-
+#i can
     def query(self, images):
         """Return an image from the pool.
 
