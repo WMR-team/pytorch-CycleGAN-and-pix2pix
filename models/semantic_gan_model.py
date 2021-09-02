@@ -29,11 +29,14 @@ class SemanticGANModel(BaseModel):
             the modified parser.
 
         For CycleGAN, in addition to GAN losses, we introduce lambda_A, lambda_B, and lambda_identity for the following losses.
+
         A (source domain), B (target domain).
         Generators: G_A: A -> B; G_B: B -> A.
+
         Discriminators: D_A: G_A(A) vs. B; D_B: G_B(B) vs. A.
         Forward cycle loss:  lambda_A * ||G_B(G_A(A)) - A|| (Eqn. (2) in the paper)
         Backward cycle loss: lambda_B * ||G_A(G_B(B)) - B|| (Eqn. (2) in the paper)
+
         Identity loss (optional): lambda_identity * (||G_A(B) - B|| * lambda_B + ||G_B(A) - A|| * lambda_A) (Sec 5.2 "Photo generation from paintings" in the paper)
         Dropout is not used in the original CycleGAN paper.
         """
@@ -104,9 +107,11 @@ class SemanticGANModel(BaseModel):
             self.criterionIdt = torch.nn.L1Loss()
             self.criterionSemantic = torch.nn.CrossEntropyLoss()  # define semantic loss with weight.
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
-            self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters(), self.netTarget_FCN.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
+            self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters(), ), lr=opt.lr, betas=(opt.beta1, 0.999))
+            self.optimizer_Semantic = torch.optim.Adam( self.netTarget_FCN.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizer_D = torch.optim.Adam(itertools.chain(self.netD_A.parameters(), self.netD_B.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
+            self.optimizers.append(self.optimizer_Semantic)
             self.optimizers.append(self.optimizer_D)
 
     def set_input(self, input):
@@ -161,25 +166,10 @@ class SemanticGANModel(BaseModel):
         """Calculate GAN loss for discriminator D_B"""
         fake_A = self.fake_A_pool.query(self.fake_A)
         self.loss_D_B = self.backward_D_basic(self.netD_B, self.real_A, fake_A)
-
-    def backward_G(self):
-        """Calculate the loss for generators G_A and G_B"""
-        lambda_idt = self.opt.lambda_identity
-        lambda_A = self.opt.lambda_A
-        lambda_B = self.opt.lambda_B
-        lambda_sem = self.opt.lambda_semantic
-        # Identity loss
-        if lambda_idt > 0:
-            # G_A should be identity if real_B is fed: ||G_A(B) - B||
-            self.idt_A = self.netG_A(self.real_B)
-            self.loss_idt_A = self.criterionIdt(self.idt_A, self.real_B) * lambda_B * lambda_idt
-            # G_B should be identity if real_A is fed: ||G_B(A) - A||
-            self.idt_B = self.netG_B(self.real_A)
-            self.loss_idt_B = self.criterionIdt(self.idt_B, self.real_A) * lambda_A * lambda_idt
-        else:
-            self.loss_idt_A = 0
-            self.loss_idt_B = 0
+    def backward_Semantic(self):
+        """Calculatie loss of DABNet"""
         # semantic loss
+        lambda_sem = self.opt.lambda_semantic
         if lambda_sem > 0:
             # self.sem_real_A = self.netSource_FCN(self.real_A)  # fx(A)
             self.sem_fake_B = self.netTarget_FCN(self.fake_B)  # fy(G_A(A))
@@ -201,6 +191,24 @@ class SemanticGANModel(BaseModel):
             self.loss_sem_realArecA = 0
             self.loss_sem_fackArealB = 0
             self.loss_sem_fackArecB = 0
+    def backward_G(self):
+        """Calculate the loss for generators G_A and G_B"""
+        lambda_idt = self.opt.lambda_identity
+        lambda_A = self.opt.lambda_A
+        lambda_B = self.opt.lambda_B
+
+        # Identity loss
+        if lambda_idt > 0:
+            # G_A should be identity if real_B is fed: ||G_A(B) - B|| ,wish G_A(B) still is B
+            self.idt_A = self.netG_A(self.real_B)
+            self.loss_idt_A = self.criterionIdt(self.idt_A, self.real_B) * lambda_B * lambda_idt
+            # G_B should be identity if real_A is fed: ||G_B(A) - A||
+            self.idt_B = self.netG_B(self.real_A)
+            self.loss_idt_B = self.criterionIdt(self.idt_B, self.real_A) * lambda_A * lambda_idt
+        else:
+            self.loss_idt_A = 0
+            self.loss_idt_B = 0
+
 
         # GAN loss D_A(G_A(A))
         self.loss_G_A = self.criterionGAN(self.netD_A(self.fake_B), True)
@@ -223,9 +231,19 @@ class SemanticGANModel(BaseModel):
         self.optimizer_G.zero_grad()  # set G_A and G_B's gradients to zero
         self.backward_G()             # calculate gradients for G_A and G_B
         self.optimizer_G.step()       # update G_A and G_B's weights
+
+        self.optimizer_Semantic.zero_grad()  # set G_A and G_B's gradients to zero
+        self.backward_Semantic()  # calculate gradients for G_A and G_B
+        self.optimizer_Semantic.step()
         # D_A and D_B
         self.set_requires_grad([self.netD_A, self.netD_B], True)
         self.optimizer_D.zero_grad()   # set D_A and D_B's gradients to zero
         self.backward_D_A()      # calculate gradients for D_A
         self.backward_D_B()      # calculate graidents for D_B
         self.optimizer_D.step()  # update D_A and D_B's weights
+        #freeze G and D ,train the Target_FCN
+        for i in range(2):
+            self.forward()
+            self.optimizer_Semantic.zero_grad()  # set G_A and G_B's gradients to zero
+            self.backward_Semantic()  # calculate gradients for G_A and G_B
+            self.optimizer_Semantic.step()
