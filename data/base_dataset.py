@@ -8,6 +8,7 @@ import torch.utils.data as data
 from PIL import Image
 import torchvision.transforms as transforms
 from abc import ABC, abstractmethod
+import cv2
 
 
 class BaseDataset(data.Dataset, ABC):
@@ -96,7 +97,7 @@ def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, conve
 
     if opt.preprocess == 'none':
         transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method)))
-
+    #if not print"--no_flip",then no_flip is false
     if not opt.no_flip:
         if params is None:
             transform_list.append(transforms.RandomHorizontalFlip())
@@ -112,7 +113,7 @@ def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, conve
     return transforms.Compose(transform_list)
 
 
-def __make_power_2(img, base, method=Image.BICUBIC):
+   def __make_power_2(img, base, method=Image.BICUBIC):
     ow, oh = img.size
     h = int(round(oh / base) * base)
     w = int(round(ow / base) * base)

@@ -2,7 +2,7 @@ import os
 from data.base_dataset import BaseDataset, get_params, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
-
+import cv2
 
 class AlignedDataset(BaseDataset):
     """A dataset class for paired image dataset.
@@ -51,7 +51,12 @@ class AlignedDataset(BaseDataset):
         B_transform = get_transform(self.opt, transform_params, grayscale=(self.output_nc == 1))
 
         A = A_transform(A)
+        img = cv2.imread(A)
+        img.show()
         B = B_transform(B)
+        img_B = cv2.imread(B)
+        img.show()
+        cv2.waitKey(0)
 
         return {'A': A, 'B': B, 'A_paths': AB_path, 'B_paths': AB_path}
 
