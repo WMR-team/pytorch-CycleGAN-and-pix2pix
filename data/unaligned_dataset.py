@@ -1,5 +1,5 @@
 import os
-from data.base_dataset import BaseDataset, get_transform
+from data.base_dataset import BaseDataset, get_params, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
 import random
@@ -37,13 +37,8 @@ class UnalignedDataset(BaseDataset):
         self.lbl_size = len(self.lbl_paths)  # get the size of label A
         assert (self.A_size == self.lbl_size)
         btoA = self.opt.direction == 'BtoA'
-        input_nc = self.opt.output_nc if btoA else self.opt.input_nc       # get the number of channels of input image
-        output_nc = self.opt.input_nc if btoA else self.opt.output_nc      # get the number of channels of output image
-        A = Image.open(self.A_paths).convert('RGB')
-        transform_params = get_params(self.opt, A.size)
-        self.transform_A = get_transform(self.opt, transform_params,grayscale=(input_nc == 1))
-        self.transform_B = get_transform(self.opt, transform_params,grayscale=(output_nc == 1))
-        self.transform_lbl = get_transform(self.opt, transform_params,grayscale=False, convert=False)
+        self.input_nc = self.opt.output_nc if btoA else self.opt.input_nc       # get the number of channels of input image
+        self.output_nc = self.opt.input_nc if btoA else self.opt.output_nc      # get the number of channels of output image
 
     def __getitem__(self, index):
         """Return a data point and its metadata information.
@@ -70,10 +65,14 @@ class UnalignedDataset(BaseDataset):
         A_img = Image.open(A_path).convert('RGB')
         B_img = Image.open(B_path).convert('RGB')
         A_lbl = Image.open(lbl_path).convert('L')
-        # apply image transformation
-        A = self.transform_A(A_img)
-        B = self.transform_B(B_img)
-        lbl = self.transform_lbl(A_lbl)
+        # apply the same img transform to both A, B and label
+        transform_params = get_params(self.opt, A_img.size)
+        A_transform = get_transform(self.opt, transform_params, grayscale=(self.input_nc == 1))
+        B_transform = get_transform(self.opt, transform_params, grayscale=(self.output_nc == 1))
+        lbl_transform = get_transform(self. opt, transform_params, grayscale=False, convert=False)
+        A = A_transform(A_img)
+        B = B_transform(B_img)
+        lbl = lbl_transform(A_lbl)
         lbl = np.asarray(lbl)
         lbl = torch.from_numpy(lbl).long()
         # print('------------')
