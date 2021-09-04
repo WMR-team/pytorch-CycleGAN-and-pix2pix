@@ -39,6 +39,7 @@ class UnalignedDataset(BaseDataset):
         btoA = self.opt.direction == 'BtoA'
         self.input_nc = self.opt.output_nc if btoA else self.opt.input_nc       # get the number of channels of input image
         self.output_nc = self.opt.input_nc if btoA else self.opt.output_nc      # get the number of channels of output image
+        self.transform_B = get_transform(self.opt, grayscale=(self.output_nc == 1))
 
     def __getitem__(self, index):
         """Return a data point and its metadata information.
@@ -65,14 +66,13 @@ class UnalignedDataset(BaseDataset):
         A_img = Image.open(A_path).convert('RGB')
         B_img = Image.open(B_path).convert('RGB')
         A_lbl = Image.open(lbl_path).convert('L')
-        # apply the same img transform to both A, B and label
+        # apply the same img transform to both A and label, apply random transform to B, it is not necessary to apply the same transform to both A and B
         transform_params = get_params(self.opt, A_img.size)
-        A_transform = get_transform(self.opt, transform_params, grayscale=(self.input_nc == 1))
-        B_transform = get_transform(self.opt, transform_params, grayscale=(self.output_nc == 1))
-        lbl_transform = get_transform(self. opt, transform_params, grayscale=False, convert=False)
-        A = A_transform(A_img)
-        B = B_transform(B_img)
-        lbl = lbl_transform(A_lbl)
+        transform_A = get_transform(self.opt, transform_params, grayscale=(self.input_nc == 1))
+        transform_lbl = get_transform(self. opt, transform_params, grayscale=False, convert=False)
+        A = transform_A(A_img)
+        B = self.transform_B(B_img)
+        lbl = transform_lbl(A_lbl)
         lbl = np.asarray(lbl)
         lbl = torch.from_numpy(lbl).long()
         # print('------------')
