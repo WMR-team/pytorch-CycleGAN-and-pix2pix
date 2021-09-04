@@ -1,3 +1,4 @@
+import os
 import torch
 import itertools
 from util.image_pool import ImagePool
@@ -103,7 +104,7 @@ class SemanticGANModel(BaseModel):
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)  # define GAN loss.
             self.criterionCycle = torch.nn.L1Loss()
             self.criterionIdt = torch.nn.L1Loss()
-            weight = torch.from_numpy(pickle.load(open(opt.dataset_info_file, 'rb'))['classWeights']).to(self.device)
+            weight = torch.from_numpy(pickle.load(open(os.path.join(opt.dataroot, opt.dataset_info_file), 'rb'))['classWeights']).to(self.device)
             self.criterionSemantic = torch.nn.CrossEntropyLoss(weight)  # define semantic loss with weight.
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters(), self.netTarget_FCN.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
