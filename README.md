@@ -31,5 +31,7 @@ python train.py --dataroot ./datasets/rocks --name rocks_semanticgan --model sem
 
 Note: try to use 6 gpus first, if it is not feasible, try to use 4 gpus by using  `--gpus_ids 0,1,2,3`
 
+The batch size can be modified according to the device capability by using `--batch_size [appropriate number]`
+
 To see more intermediate results, check out `./checkpoints/semantic_cyclegan/web/index.html`.
 
