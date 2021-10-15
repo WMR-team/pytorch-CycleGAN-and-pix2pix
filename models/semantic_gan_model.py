@@ -67,7 +67,7 @@ class SemanticGANModel(BaseModel):
             visual_names_A.append('idt_B')
             visual_names_B.append('idt_A')
         if self.isTrain and self.opt.lambda_semantic  > 0.0:  # if semantic loss is used, we also visualize sem_real_A, sem_fake_B, sem_rec_A, sem_real_B, sem_fake_A, sem_rec_B
-            visual_sem_A = ['sem_real_A', 'sem_fake_B', 'sem_rec_A']
+            visual_sem_A = ['sem_real_A', 'sem_fake_B', 'sem_rec_A', 'sem_blank']
             visual_sem_B = ['sem_real_B', 'sem_fake_A', 'sem_rec_B']
 
         self.visual_names = visual_names_A + visual_names_B + visual_sem_A + visual_sem_B  # combine visualizations for A and B
@@ -125,6 +125,7 @@ class SemanticGANModel(BaseModel):
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.sem_real_A = input['lbl'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
+        self.sem_blank = torch.ones(self.sem_real_A.shape, dtype=torch.int64) * 2
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
