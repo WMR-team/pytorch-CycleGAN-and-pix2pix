@@ -74,7 +74,7 @@ class UnalignedDataset(BaseDataset):
         B = self.transform_B(B_img)
         lbl = transform_lbl(A_lbl)
         lbl = np.asarray(lbl)
-        lbl = torch.from_numpy(lbl).long()
+        lbl = torch.from_numpy(lbl.copy()).long()
         # print('------------')
         # print(torch.unique(lbl))
 
